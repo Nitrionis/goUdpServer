@@ -1,48 +1,31 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"net"
+	"time"
 )
 
-func handleClient(conn net.Conn) {
-	defer log.Println("Client disconected.")
-	r := bufio.NewReader(conn)
-	w := bufio.NewWriter(conn)
-	for {
-		buffer, err := r.ReadString('\n')
-		if err != nil {
-			log.Fatal(err)
-			conn.Close()
-			return
-		}
-		fmt.Println(buffer)
+func main() {
+	pc, err := net.ListenPacket("udp", ":8080")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pc.Close()
 
-		w.WriteString(buffer)
-		w.Flush()
+	for {
+		buf := make([]byte, 1024)
+		n, addr, err := pc.ReadFrom(buf)
+		if err != nil {
+			continue
+		}
+		/*go*/ serve(pc, addr, buf[:n])
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
-func main() {
-	fmt.Println("Server start!")
-
-	server, err := net.Listen("tcp", ":8080")
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	for {
-		conn, err := server.Accept()
-		if err != nil {
-			log.Fatal(err)
-			return
-		}
-		fmt.Printf("New user accept %s", conn.RemoteAddr())
-		go handleClient(conn)
-	}
-
-	fmt.Println("Server closed!")
+func serve(pc net.PacketConn, addr net.Addr, buf []byte) {
+	fmt.Println(string(buf))
+	pc.WriteTo(buf, addr)
 }
